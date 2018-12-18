@@ -1,28 +1,47 @@
+library(ggplot2)
 library(googlesheets)
 library(dplyr)
+library(reshape2)
+
 gs_auth(new_user = FALSE)
 
 comp_data_regi = gs_title("Weight Loss Progress")
 
-comp_data <- gs_read(comp_data_regi, ws ="Sheet1")
+data <- gs_read(comp_data_regi, ws ="Sheet1")
 
-comp_data <- comp_data %>% 
-  mutate(percent_change_total_w1 = ((Initial - W1)/Initial)*100) %>% 
-  mutate(percent_change_total_w2 = ((Initial - W2)/Initial)*100) %>% 
-  mutate(percent_change_total_w3 = ((Initial - W3)/Initial)*100) %>% 
-  mutate(percent_change_total_w4 = ((Initial - W4)/Initial)*100) %>% 
-  mutate(percent_change_total_w5 = ((Initial - W5)/Initial)*100) %>% 
-  mutate(percent_change_total_w6 = ((Initial - W6)/Initial)*100) %>% 
-  mutate(percent_change_total_w7 = ((Initial - W7)/Initial)*100) %>% 
-  mutate(percent_change_total_w8 = ((Initial - W8)/Initial)*100)
-comp_data <- comp_data %>% 
-  mutate(percent_change_weekly_w1 = ((Initial - W1)/Initial)*100) %>% 
-  mutate(percent_change_weekly_w2 = (((Initial - W2)/Initial)*100) - percent_change_total_w1) %>% 
-  mutate(percent_change_weekly_w3 = (((Initial - W3)/Initial)*100) - percent_change_total_w2) %>% 
-  mutate(percent_change_weekly_w4 = (((Initial - W4)/Initial)*100) - percent_change_total_w3) %>% 
-  mutate(percent_change_weekly_w5 = (((Initial - W5)/Initial)*100) - percent_change_total_w4) %>% 
-  mutate(percent_change_weekly_w6 = (((Initial - W6)/Initial)*100) - percent_change_total_w5) %>% 
-  mutate(percent_change_weekly_w7 = (((Initial - W7)/Initial)*100) - percent_change_total_w6) %>% 
-  mutate(percent_change_weekly_w8 = (((Initial - W8)/Initial)*100) - percent_change_total_w7)
+# seperate into frames of weekly change, total change and weight
 
-bars <- ggplot2::ggplot(data = comp_data)
+weight <- data %>% 
+	select(Name, W0, W1, W2, W3, W4, W5, W6, W7, W8)
+
+perc_change <- data %>% 
+	select(-W0, -W1, -W2, -W3, -W4, -W5, -W6, -W7, -W8, W0=W0_perc_change, W1=W1_perc_change, W2=W2_perc_change, W3=W3_perc_change, W4=W4_perc_change,
+				 W5=W5_perc_change, W6=W6_perc_change, W7=W7_perc_change, W8=W8_perc_change)
+
+t_change <- data %>% 
+	select(Name, "Total Percent Change" = total_change)
+
+# melt data for plots
+
+perc_change_melted <- melt(perc_change,
+													 id.vars = c("Name"),
+													 measure.vars = c("W0","W1","W2","W3","W4","W5","W6","W7","W8"),
+													 variable.name="Week",
+													 value.name="Weight")
+
+weight_melted <- melt(weight,
+											id.vars = c("Name"),
+											measure.vars = c("W0","W1","W2","W3","W4","W5","W6","W7","W8"),
+											variable.name="Week",
+											value.name="Weight")
+
+# create plots
+
+pcm <- ggplot(perc_change_melted, aes(x = Week, y = Weight, group = Name, colour = Name))
+pcm + geom_line(size=2)
+
+wm <- ggplot(weight_melted, aes(x = Week, y = Weight, group = Name, colour = Name, size = 2))
+wm + geom_line()
+
+tc <- ggplot(t_change, aes(x=Name, y=`Total Percent Change`, fill = Name))
+tc + geom_bar(stat="identity")
